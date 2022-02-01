@@ -14,6 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include QMK_KEYBOARD_H
+#include "raw_hid.h"
 
 const char OLED_STATUS_NONE[] = "    ";
 
@@ -215,3 +216,25 @@ void oled_task_user(void) {
 }
 
 #endif
+
+void raw_hid_receive(uint8_t *data, uint8_t length) {
+    // Your code goes here. data is the packet received from host.
+
+    //raw_hid_send(data, length);
+}
+
+void transport_master_init(void) {
+
+}
+
+void transport_slave_init(void) {
+
+}
+
+bool transport_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+    return 0;
+}
+
+void transport_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+
+}

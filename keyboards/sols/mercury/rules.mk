@@ -6,15 +6,20 @@ F_CPU = 16000000
 #OPT_DEFS += -DLEFT_HAND
 OPT_DEFS += -DRIGHT_HAND
 
-
 # Bootloader selection
 BOOTLOADER = USBasp
+
+LTO_ENABLE = yes
 
 # Build Options
 #   change yes to no to disable
 #
+
+SPLIT_KEYBOARD = yes
+SPLIT_TRANSPORT = custom
+
 BOOTMAGIC_ENABLE = yes     # Virtual DIP switch configuration
-MOUSEKEY_ENABLE = no       # Mouse keys
+MOUSEKEY_ENABLE = yes       # Mouse keys
 EXTRAKEY_ENABLE = yes       # Audio control and System control
 CONSOLE_ENABLE = no         # Console for debug
 COMMAND_ENABLE = no         # Commands for debug and configuration
@@ -26,6 +31,8 @@ BACKLIGHT_ENABLE = no       # Enable keyboard backlight functionality
 RGBLIGHT_ENABLE = yes        # Enable keyboard RGB underglow
 AUDIO_ENABLE = no           # Audio output
 
+RAW_ENABLE = yes
+
 #BLUETOOTH_ENABLE = no       # Enable Bluetooth
 #BLUETOOTH = RN42
 
@@ -33,3 +40,7 @@ PS2_MOUSE_ENABLE = no
 PS2_USE_INT = no
 
 OLED_DRIVER_ENABLE = yes
+
+SPACE_CADET_ENABLE = no
+GRAVE_ESC_ENABLE = no
+MAGIC_ENABLE = no

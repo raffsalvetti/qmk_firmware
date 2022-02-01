@@ -47,6 +47,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /* COL2ROW, ROW2COL */
 #define DIODE_DIRECTION COL2ROW
 
+#define SPLIT_USB_DETECT
+
 /*
  * Split Keyboard specific options, make sure you have 'SPLIT_KEYBOARD = yes' in your rules.mk, and define SOFT_SERIAL_PIN.
  */
@@ -202,3 +204,5 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #   define AUDIO_PIN D7
 #   define AUDIO_CLICKY
 #endif
+
+
