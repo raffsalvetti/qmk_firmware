@@ -217,10 +217,60 @@ void oled_task_user(void) {
 
 #endif
 
+// Happens before most anything is started.
+// Good for hardware setup that you want running very early.
+void keyboard_pre_init_user(void) {
+
+}
+ // Happens at the end of the firmware’s startup process.
+ // This is where you’d want to put “customization” code, for the most part.
+void keyboard_post_init_user(void) {
+
+}
+
+// eh chamado depois de executar todos os eventos do loop principal
+// depois de ler as teclas e enviar os dados via udb, por ex
+void housekeeping_task_user(void) {
+    // if (is_keyboard_master()) {
+    //     // Interact with slave every 500ms
+    //     static uint32_t last_sync = 0;
+    //     if (timer_elapsed32(last_sync) > 500) {
+    //         master_to_slave_t m2s = {6};
+    //         slave_to_master_t s2m = {0};
+    //         if(transaction_rpc_exec(USER_SYNC_A, sizeof(m2s), &m2s, sizeof(s2m), &s2m)) {
+    //             last_sync = timer_read32();
+    //             dprintf("Slave value: %d\n", s2m.s2m_data); // this will now be 11, as the slave adds 5
+    //         } else {
+    //             dprint("Slave sync failed!\n");
+    //         }
+    //     }
+    // }
+}
+
+// The keycode argument is whatever is defined in your keymap, eg MO(1), KC_L,
+// etc. You should use a switch...case block to handle these events.
+// The record argument contains information about the actual press:
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    if (!is_keyboard_master()) {
+        // enviar codigo da tecla para o master
+        return false; //impede continuar o tratamento
+    }
+    return true; //true continua processnado o evento pelo core do qmk
+}
+
 void raw_hid_receive(uint8_t *data, uint8_t length) {
     // Your code goes here. data is the packet received from host.
 
     //raw_hid_send(data, length);
+}
+
+// Use the IS_LAYER_ON_STATE(state, layer) and IS_LAYER_OFF_STATE(state, layer)
+// macros to check the status of a particular layer.
+// Outside of layer_state_set_* functions, you can use the IS_LAYER_ON(layer)
+// and IS_LAYER_OFF(layer) macros to check global layer state.
+// https://docs.qmk.fm/#/keymap?id=keymap-layer-status
+layer_state_t layer_state_set_user(layer_state_t state) {
+    return state;
 }
 
 void transport_master_init(void) {

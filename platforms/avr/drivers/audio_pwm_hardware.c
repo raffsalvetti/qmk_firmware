@@ -40,106 +40,208 @@ extern uint8_t note_timbre;
   alternatively, the PWM pins on PORTB can be used as only/primary speaker
 */
 
-#if defined(AUDIO_PIN) && (AUDIO_PIN != C4) && (AUDIO_PIN != C5) && (AUDIO_PIN != C6) && (AUDIO_PIN != B5) && (AUDIO_PIN != B6) && (AUDIO_PIN != B7) && (AUDIO_PIN != D5)
-#    error "Audio feature enabled, but no suitable pin selected as AUDIO_PIN - see docs/feature_audio under the AVR settings for available options."
-#endif
+#if defined(__AVR_ATmega32U4__)
+#   if defined(AUDIO_PIN) && (AUDIO_PIN != C4) && (AUDIO_PIN != C5) && (AUDIO_PIN != C6) && (AUDIO_PIN != B5) && (AUDIO_PIN != B6) && (AUDIO_PIN != B7) && (AUDIO_PIN != D5)
+#       error "Audio feature enabled, but no suitable pin selected as AUDIO_PIN - see docs/feature_audio under the AVR settings for available options."
+#   endif
+#   if (AUDIO_PIN == C4) || (AUDIO_PIN == C5) || (AUDIO_PIN == C6)
+#       define AUDIO1_PIN_SET
+#       define AUDIO1_TIMSKx TIMSK3
+#       define AUDIO1_TCCRxA TCCR3A
+#       define AUDIO1_TCCRxB TCCR3B
+#       define AUDIO1_ICRx ICR3
+#       define AUDIO1_WGMx0 WGM30
+#       define AUDIO1_WGMx1 WGM31
+#       define AUDIO1_WGMx2 WGM32
+#       define AUDIO1_WGMx3 WGM33
+#       define AUDIO1_CSx0 CS30
+#       define AUDIO1_CSx1 CS31
+#       define AUDIO1_CSx2 CS32
+#       if (AUDIO_PIN == C6)
+#           define AUDIO1_COMxy0 COM3A0
+#           define AUDIO1_COMxy1 COM3A1
+#           define AUDIO1_OCIExy OCIE3A
+#           define AUDIO1_OCRxy OCR3A
+#           define AUDIO1_PIN C6
+#           define AUDIO1_TIMERx_COMPy_vect TIMER3_COMPA_vect
+#       elif (AUDIO_PIN == C5)
+#           define AUDIO1_COMxy0 COM3B0
+#           define AUDIO1_COMxy1 COM3B1
+#           define AUDIO1_OCIExy OCIE3B
+#           define AUDIO1_OCRxy OCR3B
+#           define AUDIO1_PIN C5
+#           define AUDIO1_TIMERx_COMPy_vect TIMER3_COMPB_vect
+#       elif (AUDIO_PIN == C4)
+#           define AUDIO1_COMxy0 COM3C0
+#           define AUDIO1_COMxy1 COM3C1
+#           define AUDIO1_OCIExy OCIE3C
+#           define AUDIO1_OCRxy OCR3C
+#           define AUDIO1_PIN C4
+#           define AUDIO1_TIMERx_COMPy_vect TIMER3_COMPC_vect
+#       endif
+#   endif
 
-#if (AUDIO_PIN == C4) || (AUDIO_PIN == C5) || (AUDIO_PIN == C6)
-#    define AUDIO1_PIN_SET
-#    define AUDIO1_TIMSKx TIMSK3
-#    define AUDIO1_TCCRxA TCCR3A
-#    define AUDIO1_TCCRxB TCCR3B
-#    define AUDIO1_ICRx ICR3
-#    define AUDIO1_WGMx0 WGM30
-#    define AUDIO1_WGMx1 WGM31
-#    define AUDIO1_WGMx2 WGM32
-#    define AUDIO1_WGMx3 WGM33
-#    define AUDIO1_CSx0 CS30
-#    define AUDIO1_CSx1 CS31
-#    define AUDIO1_CSx2 CS32
+#   if defined(AUDIO_PIN) && defined(AUDIO_PIN_ALT) && (AUDIO_PIN == AUDIO_PIN_ALT)
+#       error "Audio feature: AUDIO_PIN and AUDIO_PIN_ALT on the same pin makes no sense."
+#   endif
 
-#    if (AUDIO_PIN == C6)
-#        define AUDIO1_COMxy0 COM3A0
-#        define AUDIO1_COMxy1 COM3A1
-#        define AUDIO1_OCIExy OCIE3A
-#        define AUDIO1_OCRxy OCR3A
-#        define AUDIO1_PIN C6
-#        define AUDIO1_TIMERx_COMPy_vect TIMER3_COMPA_vect
-#    elif (AUDIO_PIN == C5)
-#        define AUDIO1_COMxy0 COM3B0
-#        define AUDIO1_COMxy1 COM3B1
-#        define AUDIO1_OCIExy OCIE3B
-#        define AUDIO1_OCRxy OCR3B
-#        define AUDIO1_PIN C5
-#        define AUDIO1_TIMERx_COMPy_vect TIMER3_COMPB_vect
-#    elif (AUDIO_PIN == C4)
-#        define AUDIO1_COMxy0 COM3C0
-#        define AUDIO1_COMxy1 COM3C1
-#        define AUDIO1_OCIExy OCIE3C
-#        define AUDIO1_OCRxy OCR3C
-#        define AUDIO1_PIN C4
-#        define AUDIO1_TIMERx_COMPy_vect TIMER3_COMPC_vect
-#    endif
-#endif
+#   if ((AUDIO_PIN == B5) && ((AUDIO_PIN_ALT == B6) || (AUDIO_PIN_ALT == B7))) || ((AUDIO_PIN == B6) && ((AUDIO_PIN_ALT == B5) || (AUDIO_PIN_ALT == B7))) || ((AUDIO_PIN == B7) && ((AUDIO_PIN_ALT == B5) || (AUDIO_PIN_ALT == B6)))
+#       error "Audio feature: PORTB as AUDIO_PIN and AUDIO_PIN_ALT at the same time is not supported."
+#   endif
 
-#if defined(AUDIO_PIN) && defined(AUDIO_PIN_ALT) && (AUDIO_PIN == AUDIO_PIN_ALT)
-#    error "Audio feature: AUDIO_PIN and AUDIO_PIN_ALT on the same pin makes no sense."
-#endif
+#   if defined(AUDIO_PIN_ALT) && (AUDIO_PIN_ALT != B5) && (AUDIO_PIN_ALT != B6) && (AUDIO_PIN_ALT != B7)
+#       error "Audio feature: the pin selected as AUDIO_PIN_ALT is not supported."
+#   endif
 
-#if ((AUDIO_PIN == B5) && ((AUDIO_PIN_ALT == B6) || (AUDIO_PIN_ALT == B7))) || ((AUDIO_PIN == B6) && ((AUDIO_PIN_ALT == B5) || (AUDIO_PIN_ALT == B7))) || ((AUDIO_PIN == B7) && ((AUDIO_PIN_ALT == B5) || (AUDIO_PIN_ALT == B6)))
-#    error "Audio feature: PORTB as AUDIO_PIN and AUDIO_PIN_ALT at the same time is not supported."
-#endif
+#   if (AUDIO_PIN == B5) || (AUDIO_PIN == B6) || (AUDIO_PIN == B7) || (AUDIO_PIN_ALT == B5) || (AUDIO_PIN_ALT == B6) || (AUDIO_PIN_ALT == B7) || (AUDIO_PIN == D5)
+#       define AUDIO2_PIN_SET
+#       define AUDIO2_TIMSKx TIMSK1
+#       define AUDIO2_TCCRxA TCCR1A
+#       define AUDIO2_TCCRxB TCCR1B
+#       define AUDIO2_ICRx ICR1
+#       define AUDIO2_WGMx0 WGM10
+#       define AUDIO2_WGMx1 WGM11
+#       define AUDIO2_WGMx2 WGM12
+#       define AUDIO2_WGMx3 WGM13
+#       define AUDIO2_CSx0 CS10
+#       define AUDIO2_CSx1 CS11
+#       define AUDIO2_CSx2 CS12
 
-#if defined(AUDIO_PIN_ALT) && (AUDIO_PIN_ALT != B5) && (AUDIO_PIN_ALT != B6) && (AUDIO_PIN_ALT != B7)
-#    error "Audio feature: the pin selected as AUDIO_PIN_ALT is not supported."
-#endif
+#       if (AUDIO_PIN == B5) || (AUDIO_PIN_ALT == B5)
+#           define AUDIO2_COMxy0 COM1A0
+#           define AUDIO2_COMxy1 COM1A1
+#           define AUDIO2_OCIExy OCIE1A
+#           define AUDIO2_OCRxy OCR1A
+#           define AUDIO2_PIN B5
+#           define AUDIO2_TIMERx_COMPy_vect TIMER1_COMPA_vect
+#       elif (AUDIO_PIN == B6) || (AUDIO_PIN_ALT == B6)
+#           define AUDIO2_COMxy0 COM1B0
+#           define AUDIO2_COMxy1 COM1B1
+#           define AUDIO2_OCIExy OCIE1B
+#           define AUDIO2_OCRxy OCR1B
+#           define AUDIO2_PIN B6
+#           define AUDIO2_TIMERx_COMPy_vect TIMER1_COMPB_vect
+#       elif (AUDIO_PIN == B7) || (AUDIO_PIN_ALT == B7)
+#           define AUDIO2_COMxy0 COM1C0
+#           define AUDIO2_COMxy1 COM1C1
+#           define AUDIO2_OCIExy OCIE1C
+#           define AUDIO2_OCRxy OCR1C
+#           define AUDIO2_PIN B7
+#           define AUDIO2_TIMERx_COMPy_vect TIMER1_COMPC_vect
+#       elif (AUDIO_PIN == D5) && defined(__AVR_ATmega32A__)
+#           pragma message "Audio support for ATmega32A is experimental and can cause crashes."
+#           undef AUDIO2_TIMSKx
+#           define AUDIO2_TIMSKx TIMSK
+#           define AUDIO2_COMxy0 COM1A0
+#           define AUDIO2_COMxy1 COM1A1
+#           define AUDIO2_OCIExy OCIE1A
+#           define AUDIO2_OCRxy OCR1A
+#           define AUDIO2_PIN D5
+#           define AUDIO2_TIMERx_COMPy_vect TIMER1_COMPA_vect
+#       endif
+#   endif
+#elif defined(__AVR_ATmega32A__)
+#   if defined(AUDIO_PIN) && (AUDIO_PIN != B3) && (AUDIO_PIN != D4) && (AUDIO_PIN != D5) && (AUDIO_PIN != D7)
+#       error "Audio feature enabled, but no suitable pin selected as AUDIO_PIN - see docs/feature_audio under the AVR settings for available options."
+#   endif
+#   if (AUDIO_PIN == B3)
+#       define AUDIO1_PIN_SET
+#       define AUDIO1_TIMSKx TIMSK
+#       define AUDIO1_TCCRxA TCCR3A
+#       define AUDIO1_TCCRxB TCCR3B
+#       define AUDIO1_ICRx ICR3
+#       define AUDIO1_WGMx0 WGM30
+#       define AUDIO1_WGMx1 WGM31
+#       define AUDIO1_WGMx2 WGM32
+#       define AUDIO1_WGMx3 WGM33
+#       define AUDIO1_CSx0 CS30
+#       define AUDIO1_CSx1 CS31
+#       define AUDIO1_CSx2 CS32
+#       if (AUDIO_PIN == C6)
+#           define AUDIO1_COMxy0 COM3A0
+#           define AUDIO1_COMxy1 COM3A1
+#           define AUDIO1_OCIExy OCIE3A
+#           define AUDIO1_OCRxy OCR3A
+#           define AUDIO1_PIN C6
+#           define AUDIO1_TIMERx_COMPy_vect TIMER3_COMPA_vect
+#       elif (AUDIO_PIN == C5)
+#           define AUDIO1_COMxy0 COM3B0
+#           define AUDIO1_COMxy1 COM3B1
+#           define AUDIO1_OCIExy OCIE3B
+#           define AUDIO1_OCRxy OCR3B
+#           define AUDIO1_PIN C5
+#           define AUDIO1_TIMERx_COMPy_vect TIMER3_COMPB_vect
+#       elif (AUDIO_PIN == C4)
+#           define AUDIO1_COMxy0 COM3C0
+#           define AUDIO1_COMxy1 COM3C1
+#           define AUDIO1_OCIExy OCIE3C
+#           define AUDIO1_OCRxy OCR3C
+#           define AUDIO1_PIN C4
+#           define AUDIO1_TIMERx_COMPy_vect TIMER3_COMPC_vect
+#       endif
+#   endif
 
-#if (AUDIO_PIN == B5) || (AUDIO_PIN == B6) || (AUDIO_PIN == B7) || (AUDIO_PIN_ALT == B5) || (AUDIO_PIN_ALT == B6) || (AUDIO_PIN_ALT == B7) || (AUDIO_PIN == D5)
-#    define AUDIO2_PIN_SET
-#    define AUDIO2_TIMSKx TIMSK1
-#    define AUDIO2_TCCRxA TCCR1A
-#    define AUDIO2_TCCRxB TCCR1B
-#    define AUDIO2_ICRx ICR1
-#    define AUDIO2_WGMx0 WGM10
-#    define AUDIO2_WGMx1 WGM11
-#    define AUDIO2_WGMx2 WGM12
-#    define AUDIO2_WGMx3 WGM13
-#    define AUDIO2_CSx0 CS10
-#    define AUDIO2_CSx1 CS11
-#    define AUDIO2_CSx2 CS12
+#   if defined(AUDIO_PIN) && defined(AUDIO_PIN_ALT) && (AUDIO_PIN == AUDIO_PIN_ALT)
+#       error "Audio feature: AUDIO_PIN and AUDIO_PIN_ALT on the same pin makes no sense."
+#   endif
 
-#    if (AUDIO_PIN == B5) || (AUDIO_PIN_ALT == B5)
-#        define AUDIO2_COMxy0 COM1A0
-#        define AUDIO2_COMxy1 COM1A1
-#        define AUDIO2_OCIExy OCIE1A
-#        define AUDIO2_OCRxy OCR1A
-#        define AUDIO2_PIN B5
-#        define AUDIO2_TIMERx_COMPy_vect TIMER1_COMPA_vect
-#    elif (AUDIO_PIN == B6) || (AUDIO_PIN_ALT == B6)
-#        define AUDIO2_COMxy0 COM1B0
-#        define AUDIO2_COMxy1 COM1B1
-#        define AUDIO2_OCIExy OCIE1B
-#        define AUDIO2_OCRxy OCR1B
-#        define AUDIO2_PIN B6
-#        define AUDIO2_TIMERx_COMPy_vect TIMER1_COMPB_vect
-#    elif (AUDIO_PIN == B7) || (AUDIO_PIN_ALT == B7)
-#        define AUDIO2_COMxy0 COM1C0
-#        define AUDIO2_COMxy1 COM1C1
-#        define AUDIO2_OCIExy OCIE1C
-#        define AUDIO2_OCRxy OCR1C
-#        define AUDIO2_PIN B7
-#        define AUDIO2_TIMERx_COMPy_vect TIMER1_COMPC_vect
-#    elif (AUDIO_PIN == D5) && defined(__AVR_ATmega32A__)
-#        pragma message "Audio support for ATmega32A is experimental and can cause crashes."
-#        undef AUDIO2_TIMSKx
-#        define AUDIO2_TIMSKx TIMSK
-#        define AUDIO2_COMxy0 COM1A0
-#        define AUDIO2_COMxy1 COM1A1
-#        define AUDIO2_OCIExy OCIE1A
-#        define AUDIO2_OCRxy OCR1A
-#        define AUDIO2_PIN D5
-#        define AUDIO2_TIMERx_COMPy_vect TIMER1_COMPA_vect
-#    endif
+#   if ((AUDIO_PIN == B5) && ((AUDIO_PIN_ALT == B6) || (AUDIO_PIN_ALT == B7))) || ((AUDIO_PIN == B6) && ((AUDIO_PIN_ALT == B5) || (AUDIO_PIN_ALT == B7))) || ((AUDIO_PIN == B7) && ((AUDIO_PIN_ALT == B5) || (AUDIO_PIN_ALT == B6)))
+#       error "Audio feature: PORTB as AUDIO_PIN and AUDIO_PIN_ALT at the same time is not supported."
+#   endif
+
+#   if defined(AUDIO_PIN_ALT) && (AUDIO_PIN_ALT != B5) && (AUDIO_PIN_ALT != B6) && (AUDIO_PIN_ALT != B7)
+#       error "Audio feature: the pin selected as AUDIO_PIN_ALT is not supported."
+#   endif
+
+#   if (AUDIO_PIN == B5) || (AUDIO_PIN == B6) || (AUDIO_PIN == B7) || (AUDIO_PIN_ALT == B5) || (AUDIO_PIN_ALT == B6) || (AUDIO_PIN_ALT == B7) || (AUDIO_PIN == D5)
+#       define AUDIO2_PIN_SET
+#       define AUDIO2_TIMSKx TIMSK1
+#       define AUDIO2_TCCRxA TCCR1A
+#       define AUDIO2_TCCRxB TCCR1B
+#       define AUDIO2_ICRx ICR1
+#       define AUDIO2_WGMx0 WGM10
+#       define AUDIO2_WGMx1 WGM11
+#       define AUDIO2_WGMx2 WGM12
+#       define AUDIO2_WGMx3 WGM13
+#       define AUDIO2_CSx0 CS10
+#       define AUDIO2_CSx1 CS11
+#       define AUDIO2_CSx2 CS12
+
+#       if (AUDIO_PIN == B5) || (AUDIO_PIN_ALT == B5)
+#           define AUDIO2_COMxy0 COM1A0
+#           define AUDIO2_COMxy1 COM1A1
+#           define AUDIO2_OCIExy OCIE1A
+#           define AUDIO2_OCRxy OCR1A
+#           define AUDIO2_PIN B5
+#           define AUDIO2_TIMERx_COMPy_vect TIMER1_COMPA_vect
+#       elif (AUDIO_PIN == B6) || (AUDIO_PIN_ALT == B6)
+#           define AUDIO2_COMxy0 COM1B0
+#           define AUDIO2_COMxy1 COM1B1
+#           define AUDIO2_OCIExy OCIE1B
+#           define AUDIO2_OCRxy OCR1B
+#           define AUDIO2_PIN B6
+#           define AUDIO2_TIMERx_COMPy_vect TIMER1_COMPB_vect
+#       elif (AUDIO_PIN == B7) || (AUDIO_PIN_ALT == B7)
+#           define AUDIO2_COMxy0 COM1C0
+#           define AUDIO2_COMxy1 COM1C1
+#           define AUDIO2_OCIExy OCIE1C
+#           define AUDIO2_OCRxy OCR1C
+#           define AUDIO2_PIN B7
+#           define AUDIO2_TIMERx_COMPy_vect TIMER1_COMPC_vect
+#       elif (AUDIO_PIN == D5) && defined(__AVR_ATmega32A__)
+#           pragma message "Audio support for ATmega32A is experimental and can cause crashes."
+#           undef AUDIO2_TIMSKx
+#           define AUDIO2_TIMSKx TIMSK
+#           define AUDIO2_COMxy0 COM1A0
+#           define AUDIO2_COMxy1 COM1A1
+#           define AUDIO2_OCIExy OCIE1A
+#           define AUDIO2_OCRxy OCR1A
+#           define AUDIO2_PIN D5
+#           define AUDIO2_TIMERx_COMPy_vect TIMER1_COMPA_vect
+#       endif
+#   endif
+#else
+    error "Audio feature: this MCU is not compatible with the audio feature."
 #endif
 
 // C6 seems to be the assumed default by many existing keyboard - but sill warn the user

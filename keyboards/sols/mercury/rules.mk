@@ -9,14 +9,14 @@ OPT_DEFS += -DRIGHT_HAND
 # Bootloader selection
 BOOTLOADER = USBasp
 
-LTO_ENABLE = yes
+LTO_ENABLE = yes			# enable size optimization
 
 # Build Options
 #   change yes to no to disable
 #
 
-SPLIT_KEYBOARD = yes
-SPLIT_TRANSPORT = custom
+SPLIT_KEYBOARD = yes		# enable split keyboard
+SPLIT_TRANSPORT = custom	# enable custom split protocol
 
 BOOTMAGIC_ENABLE = yes     # Virtual DIP switch configuration
 MOUSEKEY_ENABLE = yes       # Mouse keys
@@ -29,9 +29,9 @@ SLEEP_LED_ENABLE = no       # Breathing sleep LED during USB suspend
 NKRO_ENABLE = no            # USB Nkey Rollover
 BACKLIGHT_ENABLE = no       # Enable keyboard backlight functionality
 RGBLIGHT_ENABLE = yes        # Enable keyboard RGB underglow
-AUDIO_ENABLE = no           # Audio output
+AUDIO_ENABLE = yes           # Audio output
 
-RAW_ENABLE = yes
+RAW_ENABLE = yes			# enable usb raw communication
 
 #BLUETOOTH_ENABLE = no       # Enable Bluetooth
 #BLUETOOTH = RN42
@@ -39,8 +39,9 @@ RAW_ENABLE = yes
 PS2_MOUSE_ENABLE = no
 PS2_USE_INT = no
 
-OLED_DRIVER_ENABLE = yes
+OLED_DRIVER_ENABLE = yes	# enable oled driver
 
+# disables not used features
 SPACE_CADET_ENABLE = no
 GRAVE_ESC_ENABLE = no
 MAGIC_ENABLE = no
