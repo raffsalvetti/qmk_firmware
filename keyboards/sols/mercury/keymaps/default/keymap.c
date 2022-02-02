@@ -273,18 +273,18 @@ layer_state_t layer_state_set_user(layer_state_t state) {
     return state;
 }
 
-void transport_master_init(void) {
+// void transport_master_init(void) {
 
-}
+// }
 
-void transport_slave_init(void) {
+// void transport_slave_init(void) {
 
-}
+// }
 
-bool transport_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
-    return 0;
-}
+// bool transport_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+//     return 0;
+// }
 
-void transport_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+// void transport_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
 
-}
+// }

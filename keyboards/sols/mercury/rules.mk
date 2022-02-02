@@ -16,7 +16,7 @@ LTO_ENABLE = yes			# enable size optimization
 #
 
 SPLIT_KEYBOARD = yes		# enable split keyboard
-SPLIT_TRANSPORT = custom	# enable custom split protocol
+#SPLIT_TRANSPORT = custom	# enable custom split protocol
 
 BOOTMAGIC_ENABLE = yes     # Virtual DIP switch configuration
 MOUSEKEY_ENABLE = yes       # Mouse keys
@@ -29,7 +29,7 @@ SLEEP_LED_ENABLE = no       # Breathing sleep LED during USB suspend
 NKRO_ENABLE = no            # USB Nkey Rollover
 BACKLIGHT_ENABLE = no       # Enable keyboard backlight functionality
 RGBLIGHT_ENABLE = yes        # Enable keyboard RGB underglow
-AUDIO_ENABLE = yes           # Audio output
+AUDIO_ENABLE = no           # Audio output
 
 RAW_ENABLE = yes			# enable usb raw communication
 

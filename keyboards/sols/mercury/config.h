@@ -56,8 +56,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define SPLIT_MODS_ENABLE
 #define SPLIT_OLED_ENABLE
 
-// #define SOFT_SERIAL_PIN B1
-// #define SELECT_SOFT_SERIAL_SPEED 1 // or 0, 2, 3, 4, 5
+#define SOFT_SERIAL_PIN D2
+#define SELECT_SOFT_SERIAL_SPEED 1 // or 0, 2, 3, 4, 5
                                    //  0: about 189kbps (Experimental only)
                                    //  1: about 137kbps (default)
                                    //  2: about 75kbps

@@ -140,7 +140,7 @@ extern uint8_t note_timbre;
 #           define AUDIO2_TIMERx_COMPy_vect TIMER1_COMPA_vect
 #       endif
 #   endif
-#elif defined(__AVR_ATmega32A__)
+#elif defined(__AVR_ATmega32__) || defined(__AVR_ATmega32A__)
 #   if defined(AUDIO_PIN) && (AUDIO_PIN != B3) && (AUDIO_PIN != D4) && (AUDIO_PIN != D5) && (AUDIO_PIN != D7)
 #       error "Audio feature enabled, but no suitable pin selected as AUDIO_PIN - see docs/feature_audio under the AVR settings for available options."
 #   endif

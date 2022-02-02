@@ -20,7 +20,7 @@
 
 #ifdef SOFT_SERIAL_PIN
 
-#    if !(defined(__AVR_AT90USB646__) || defined(__AVR_AT90USB647__) || defined(__AVR_AT90USB1286__) || defined(__AVR_AT90USB1287__) || defined(__AVR_AT90USB162__) || defined(__AVR_ATmega16U2__) || defined(__AVR_ATmega32U2__) || defined(__AVR_ATmega16U4__) || defined(__AVR_ATmega32U4__))
+#    if !(defined(__AVR_AT90USB646__) || defined(__AVR_AT90USB647__) || defined(__AVR_AT90USB1286__) || defined(__AVR_AT90USB1287__) || defined(__AVR_AT90USB162__) || defined(__AVR_ATmega16U2__) || defined(__AVR_ATmega32U2__) || defined(__AVR_ATmega16U4__) || defined(__AVR_ATmega32U4__) || defined(__AVR_ATmega32__) || defined(__AVR_ATmega32A__))
 #        error serial.c is not supported for the currently selected MCU
 #    endif
 // if using ATmega32U4/2, AT90USBxxx I2C, can not use PD0 and PD1 in soft serial.
@@ -29,27 +29,30 @@
 #            error Using I2C, so can not use PD0, PD1
 #        endif
 #    endif
+
+#    if (defined(__AVR_AT90USB646__) || defined(__AVR_AT90USB647__) || defined(__AVR_AT90USB1286__) || defined(__AVR_AT90USB1287__) || defined(__AVR_AT90USB162__) || defined(__AVR_ATmega16U2__) || defined(__AVR_ATmega32U2__) || defined(__AVR_ATmega16U4__) || defined(__AVR_ATmega32U4__))
 // PD0..PD3, common config
-#    if SOFT_SERIAL_PIN == D0
-#        define EIMSK_BIT _BV(INT0)
-#        define EICRx_BIT (~(_BV(ISC00) | _BV(ISC01)))
-#        define SERIAL_PIN_INTERRUPT INT0_vect
-#        define EICRx EICRA
-#    elif SOFT_SERIAL_PIN == D1
-#        define EIMSK_BIT _BV(INT1)
-#        define EICRx_BIT (~(_BV(ISC10) | _BV(ISC11)))
-#        define SERIAL_PIN_INTERRUPT INT1_vect
-#        define EICRx EICRA
-#    elif SOFT_SERIAL_PIN == D2
-#        define EIMSK_BIT _BV(INT2)
-#        define EICRx_BIT (~(_BV(ISC20) | _BV(ISC21)))
-#        define SERIAL_PIN_INTERRUPT INT2_vect
-#        define EICRx EICRA
-#    elif SOFT_SERIAL_PIN == D3
-#        define EIMSK_BIT _BV(INT3)
-#        define EICRx_BIT (~(_BV(ISC30) | _BV(ISC31)))
-#        define SERIAL_PIN_INTERRUPT INT3_vect
-#        define EICRx EICRA
+#        if SOFT_SERIAL_PIN == D0
+#            define EIMSK_BIT _BV(INT0)
+#            define EICRx_BIT (~(_BV(ISC00) | _BV(ISC01)))
+#            define SERIAL_PIN_INTERRUPT INT0_vect
+#            define EICRx EICRA
+#        elif SOFT_SERIAL_PIN == D1
+#            define EIMSK_BIT _BV(INT1)
+#            define EICRx_BIT (~(_BV(ISC10) | _BV(ISC11)))
+#            define SERIAL_PIN_INTERRUPT INT1_vect
+#            define EICRx EICRA
+#        elif SOFT_SERIAL_PIN == D2
+#            define EIMSK_BIT _BV(INT2)
+#            define EICRx_BIT (~(_BV(ISC20) | _BV(ISC21)))
+#            define SERIAL_PIN_INTERRUPT INT2_vect
+#            define EICRx EICRA
+#        elif SOFT_SERIAL_PIN == D3
+#            define EIMSK_BIT _BV(INT3)
+#            define EICRx_BIT (~(_BV(ISC30) | _BV(ISC31)))
+#            define SERIAL_PIN_INTERRUPT INT3_vect
+#            define EICRx EICRA
+#        endif
 #    endif
 
 // ATmegaxxU2/AT90USB162 specific config
@@ -112,6 +115,25 @@
 #            define EICRx_BIT (~(_BV(ISC70) | _BV(ISC71)))
 #            define SERIAL_PIN_INTERRUPT INT7_vect
 #            define EICRx EICRB
+#        endif
+#    endif
+
+#    if defined(__AVR_ATmega32__) || defined(__AVR_ATmega32A__)
+// PD2(INT0),PD3(INT1)
+#        if ((SOFT_SERIAL_PIN == D3 && (USB_CFG_DMINUS_BIT == 3 || USB_CFG_DPLUS_BIT == 3)) || (SOFT_SERIAL_PIN == D2 && (USB_CFG_DMINUS_BIT == 2 || USB_CFG_DPLUS_BIT == 2)))
+#            error "SOFT_SERIAL_PIN conflicts with USB_CFG_DMINUS_BIT or USB_CFG_DPLUS_BIT"
+#        endif
+#        define EIMSK GICR
+#        if SOFT_SERIAL_PIN == D2
+#            define EIMSK_BIT _BV(INT0)
+#            define EICRx_BIT (~(_BV(ISC00) | _BV(ISC01)))
+#            define SERIAL_PIN_INTERRUPT INT0_vect
+#            define EICRx MCUCR
+#        elif SOFT_SERIAL_PIN == D3
+#            define EIMSK_BIT _BV(INT1)
+#            define EICRx_BIT (~(_BV(ISC10) | _BV(ISC11)))
+#            define SERIAL_PIN_INTERRUPT INT1_vect
+#            define EICRx MCUCR
 #        endif
 #    endif
 
