@@ -22,11 +22,19 @@ const char OLED_STATUS_NONE[] = "    ";
 
 // Defines names for use in layer keycodes and the keymap
 enum layer_names {
-    _BASE,
-    _FN,
-    _NUMPAD,
-    _RGB
+    _BASE
+    ,_FN
+    ,_NUMPAD
+#ifdef RGBLIGHT_ENABLE
+    ,_RGB
+#endif
 };
+
+#ifdef RGBLIGHT_ENABLE
+#define RGB_KEY_TRIGGER TO(_RGB)
+#else
+#define RGB_KEY_TRIGGER KC_NO
+#endif
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     /* Base */
@@ -52,8 +60,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 #else
 #error "Either LEFT_HAND or RIGHT_HAND should be define"
 #endif
-    ),
-    [_FN] = LAYOUT(
+    )
+    ,[_FN] = LAYOUT(
 #ifdef LEFT_HAND
         KC_NO,          KC_F1,          KC_F3,          KC_F4,          KC_F5,          KC_F6,
         KC_TRNS,        KC_MPRV,        KC_MPLY,        KC_MNXT,        KC_MSTP,        KC_VOLU,
@@ -75,8 +83,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 #else
        #error "Either LEFT_HAND or RIGHT_HAND should be define"
 #endif
-    ),
-    [_NUMPAD] = LAYOUT(
+    )
+    ,[_NUMPAD] = LAYOUT(
 #ifdef LEFT_HAND
         KC_TRNS,        KC_TRNS,        KC_TRNS,        KC_TRNS,        KC_TRNS,        KC_TRNS,
         KC_TRNS,        KC_TRNS,        KC_TRNS,        KC_TRNS,        KC_TRNS,        KC_TRNS,
@@ -84,7 +92,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_TRNS,        KC_TRNS,        KC_TRNS,        KC_TRNS,        KC_TRNS,        KC_TRNS,
         KC_TRNS,        KC_TRNS,        KC_TRNS,        KC_TRNS,        KC_TRNS,
                                                                                                         KC_TRNS,        KC_TRNS,
-                                                                                                                        TO(_RGB),
+                                                                                                                        RGB_KEY_TRIGGER,
                                                                                         KC_TRNS,        KC_TRNS,        TO(_FN)
 #elif RIGHT_HAND
                                         KC_NO,          KC_PSLS,        KC_PAST,        KC_PMNS,        KC_NO,          KC_NO,
@@ -98,8 +106,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 #else
 #error "Either LEFT_HAND or RIGHT_HAND should be define"
 #endif
-    ),
-    [_RGB] = LAYOUT(
+    )
+#ifdef RGBLIGHT_ENABLE
+    ,[_RGB] = LAYOUT(
 #ifdef LEFT_HAND
         RGB_M_SN,       RGB_M_X,        KC_NO,          KC_NO,          KC_NO,          KC_NO,
         RGB_M_SW,       RGB_RMOD,       RGB_TOG,        RGB_MOD,        KC_NO,          RGB_VAI,
@@ -107,8 +116,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         RGB_M_B,        KC_NO,          KC_NO,          KC_NO,          RGB_HUD,        KC_TRNS,
         RGB_M_P,        KC_NO,          KC_NO,          KC_NO,          KC_NO,
                                                                                                         KC_NO,          KC_TRNS,
-                                                                                                                        TO(_NUMPAD),
-                                                                                        KC_NO,          KC_NO,          KC_NO
+                                                                                                                        KC_NO,
+                                                                                        KC_NO,          KC_NO,          TO(_NUMPAD)
 #elif RIGHT_HAND
                                         KC_NO,          KC_NO,          KC_NO,          KC_NO,          KC_NO,          KC_NO,
                                         KC_NO,          KC_NO,          KC_NO,          KC_NO,          KC_NO,          KC_NO,
@@ -122,6 +131,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 #error "Either LEFT_HAND or RIGHT_HAND should be define"
 #endif
     )
+#endif
 };
 
 #ifdef OLED_DRIVER_ENABLE
@@ -199,9 +209,14 @@ void oled_task_user(void) {
         case _FN:
             oled_write_ln_P(PSTR("Fn"), false);
             break;
+        case _NUMPAD:
+            oled_write_ln_P(PSTR("Num"), false);
+            break;
+#ifdef RGBLIGHT_ENABLE
         case _RGB:
             oled_write_ln_P(PSTR("RGB"), false);
             break;
+#endif
         default:
             // Or use the write_ln shortcut over adding '\n' to the end of your string
             oled_write_ln_P(PSTR("NAL"), false);

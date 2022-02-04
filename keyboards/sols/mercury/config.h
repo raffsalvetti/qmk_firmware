@@ -212,7 +212,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 
 #ifdef AUDIO_ENABLE
-#   define AUDIO_PIN D7
+#   define AUDIO_PIN D5
 #   define AUDIO_CLICKY
 #endif
 
