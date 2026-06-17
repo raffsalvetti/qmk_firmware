@@ -166,6 +166,19 @@ typedef struct {
 
 led_position_t led_positions[35];
 
+// Key Position Configuration
+typedef struct {
+    int row;
+    int col;
+    int x;
+    int y;
+    int size;
+    int angle;
+} key_position_t;
+
+key_position_t key_positions[35];
+int key_position_count = 0;
+
 // SDL Fill Circle Helper (No overlapping lines for correct alpha blending)
 void SDL_RenderFillCircle(SDL_Renderer * renderer, int center_x, int center_y, int radius) {
     for (int y = -radius; y <= radius; y++) {
@@ -278,12 +291,19 @@ int main(int argc, char *argv[]) {
     
     void* avr_run_thread(void* arg) {
         int state = cpu_Running;
+        uint64_t last_sync = 0;
         while (sim_running && state != cpu_Done && state != cpu_Crashed) {
             state = avr_run(avr);
+            // Throttle to roughly 16MHz (16,000,000 cycles per sec)
+            // Sync every 160,000 cycles (10ms)
+            if (avr->cycle - last_sync >= 160000) {
+                usleep(10000); 
+                last_sync = avr->cycle;
+            }
         }
         return NULL;
     }
-    pthread_create(&avr_thread, NULL, avr_run_thread, NULL);
+    // We will start the thread AFTER SDL initialization so we don't miss the first frames
 
     // Load LED positions from CSV
     for (int i = 0; i < 35; i++) {
@@ -310,6 +330,31 @@ int main(int argc, char *argv[]) {
         printf("SIM: Loaded led_positions.csv\n");
     } else {
         printf("SIM: Warning: led_positions.csv not found, using defaults\n");
+    }
+
+    // Load key positions from CSV
+    FILE *key_file = fopen("key_positions.csv", "r");
+    if (key_file) {
+        char line[256];
+        while (fgets(line, sizeof(line), key_file)) {
+            if (line[0] == '#' || line[0] == '\n') continue;
+            int r, c, x, y, size, angle;
+            if (sscanf(line, "%d, %d, %d, %d, %d, %d", &r, &c, &x, &y, &size, &angle) == 6) {
+                if (key_position_count < 35) {
+                    key_positions[key_position_count].row = r;
+                    key_positions[key_position_count].col = c;
+                    key_positions[key_position_count].x = x;
+                    key_positions[key_position_count].y = y;
+                    key_positions[key_position_count].size = size;
+                    key_positions[key_position_count].angle = angle;
+                    key_position_count++;
+                }
+            }
+        }
+        fclose(key_file);
+        printf("SIM: Loaded key_positions.csv (%d keys)\n", key_position_count);
+    } else {
+        printf("SIM: Warning: key_positions.csv not found\n");
     }
 
     // Load OLED Module Config
@@ -380,6 +425,17 @@ int main(int argc, char *argv[]) {
             printf("Could not load oled_module.png\n");
         }
 
+        // Create 1x1 key texture for filled rotated rectangles
+        SDL_Texture* key_tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 1, 1);
+        SDL_SetTextureBlendMode(key_tex, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderTarget(ren, key_tex);
+        SDL_SetRenderDrawColor(ren, 0, 192, 192, 178); // Light Teal, 70% opacity
+        SDL_RenderClear(ren);
+        SDL_SetRenderTarget(ren, NULL);
+
+        // Start AVR thread now that GUI is ready
+        pthread_create(&avr_thread, NULL, avr_run_thread, NULL);
+
         // GUI Event Loop
         SDL_Event e;
         while (sim_running) {
@@ -443,6 +499,28 @@ int main(int argc, char *argv[]) {
                     scale_y = (float)win_h / (float)img_h;
                 }
             }
+            // Draw Key Positions
+            if (key_tex) {
+                for (int i = 0; i < key_position_count; i++) {
+                    float x = key_positions[i].x;
+                    float y = key_positions[i].y;
+                    float s = key_positions[i].size;
+                    double a = key_positions[i].angle; // SDL_RenderCopyEx takes degrees clockwise!
+                    
+                    SDL_Rect dstrect = {
+                        (int)(x * scale_x),
+                        (int)(y * scale_y),
+                        (int)(s * scale_x),
+                        (int)(s * scale_y)
+                    };
+                    
+                    // Pivot at (0, 0) means the rotation anchors precisely at the top-left (x, y) 
+                    // fixing the previous right/upward shift that occurred by rotating around the center.
+                    SDL_Point pivot = {0, 0};
+                    SDL_RenderCopyEx(ren, key_tex, NULL, &dstrect, a, &pivot, SDL_FLIP_NONE);
+                }
+            }
+
 
             // Draw RGB LEDs (using coordinates from CSV)
             SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
