@@ -238,21 +238,21 @@ void ps2_mouse_moved_user(report_mouse_t *mouse_report) {
 #ifdef RGB_MATRIX_ENABLE
 bool rgb_matrix_indicators_user(void) {
     
-    // Turn off all LEDs to isolate pressed keys
-    for (uint8_t i = 0; i < 35; i++) {
-        rgb_matrix_set_color(i, 0, 0, 0);
-    }
+    // // Turn off all LEDs to isolate pressed keys
+    // for (uint8_t i = 0; i < 35; i++) {
+    //     rgb_matrix_set_color(i, 0, 0, 0);
+    // }
     
-    // Read the matrix and light up the exact LED assigned to the pressed key
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-            if (matrix_is_on(row, col)) {
-                uint8_t led_index = g_led_config.matrix_co[row][col];
-                // Light it up bright Green!
-                rgb_matrix_set_color(led_index, 0, 255, 0);
-            }
-        }
-    }
+    // // Read the matrix and light up the exact LED assigned to the pressed key
+    // for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+    //     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+    //         if (matrix_is_on(row, col)) {
+    //             uint8_t led_index = g_led_config.matrix_co[row][col];
+    //             // Light it up bright Green!
+    //             rgb_matrix_set_color(led_index, 0, 255, 0);
+    //         }
+    //     }
+    // }
     
     return false;
 }
@@ -278,7 +278,7 @@ bool oled_task_user(void) {
         oled_set_cursor(1, 1);
         oled_write_P(PSTR("===================="), false);
         oled_set_cursor(1, 2);
-        oled_write_P(PSTR("   MERCURIO REV1    "), false);
+        oled_write_P(PSTR("   MERCURIO REV1-G  "), false);
         oled_set_cursor(1, 3);
         oled_write_P(PSTR("===================="), false);
 
@@ -286,7 +286,7 @@ bool oled_task_user(void) {
     }
 
     if (!boot_screen_done) {
-        if (timer_elapsed32(boot_timer) > 8000) { // Keep the boot screen longer so user can see it!
+        if (timer_elapsed32(boot_timer) > 2000) { // Keep the boot screen longer so user can see it!
             boot_screen_done = true;
             oled_clear();
         } else {
@@ -299,14 +299,20 @@ bool oled_task_user(void) {
     led_t current_led_state = host_keyboard_led_state();
     uint8_t current_usb_config = usbConfiguration;
 
+    oled_set_cursor(0, 0);
+
+    static uint16_t last_ldr_val = 0xFFFF;
+
     // Only update the display if something actually changed!
     if (current_layer_state != last_layer_state || 
         current_led_state.raw != last_led_state || 
-        current_usb_config != last_usb_config) {
+        current_usb_config != last_usb_config ||
+        ldr_adc_val != last_ldr_val) {
         
         last_layer_state = current_layer_state;
         last_led_state = current_led_state.raw;
         last_usb_config = current_usb_config;
+        last_ldr_val = ldr_adc_val;
 
         // Draw Active Layer
         oled_set_cursor(1, 0);

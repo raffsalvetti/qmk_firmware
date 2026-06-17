@@ -1,0 +1,21 @@
+$date Tue Jun 16 21:07:31 2026
+$end
+$version Simavr v1.8 $end
+$timescale 1ns $end
+$scope module logic $end
+$var wire 1 ! RXD $end
+$var wire 1 " TXD $end
+$var wire 1 # USB_D- $end
+$var wire 1 $ USB_D+ $end
+$upscope $end
+$enddefinitions $end
+$dumpvars
+x!
+x"
+x#
+x$
+$end
+#267909625
+1!
+#8853426875
+0!

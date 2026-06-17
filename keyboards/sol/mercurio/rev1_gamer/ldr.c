@@ -28,12 +28,13 @@ void ldr_task(void) {
         if (!(ADCSRA & (1 << ADSC))) {
             ldr_adc_val = ADC;
             if (ldr_enabled) {
+                uint16_t clamped_val = ldr_adc_val;
                 // Apply limits
-                if (ldr_adc_val < LDR_ADC_DARK) ldr_adc_val = LDR_ADC_DARK;
-                if (ldr_adc_val > LDR_ADC_BRIGHT) ldr_adc_val = LDR_ADC_BRIGHT;
+                if (clamped_val < LDR_ADC_DARK) clamped_val = LDR_ADC_DARK;
+                if (clamped_val > LDR_ADC_BRIGHT) clamped_val = LDR_ADC_BRIGHT;
                 
                 // Map to percentage (0 - 100)
-                uint8_t brightness_pct = (uint32_t)(ldr_adc_val - LDR_ADC_DARK) * 100 / (LDR_ADC_BRIGHT - LDR_ADC_DARK);
+                uint8_t brightness_pct = (uint32_t)(clamped_val - LDR_ADC_DARK) * 100 / (LDR_ADC_BRIGHT - LDR_ADC_DARK);
                 
                 // Add minimum brightness floor
                 if (brightness_pct < LDR_MIN_BRIGHTNESS) brightness_pct = LDR_MIN_BRIGHTNESS;
