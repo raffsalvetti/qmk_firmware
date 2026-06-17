@@ -15,6 +15,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <math.h>
+#include <time.h>
 
 // simavr/parts
 #include "i2c_eeprom.h"
@@ -292,13 +293,28 @@ int main(int argc, char *argv[]) {
     void* avr_run_thread(void* arg) {
         int state = cpu_Running;
         uint64_t last_sync = 0;
+        
+        struct timespec start_time;
+        clock_gettime(CLOCK_MONOTONIC, &start_time);
+        
         while (sim_running && state != cpu_Done && state != cpu_Crashed) {
             state = avr_run(avr);
-            // Throttle to roughly 16MHz (16,000,000 cycles per sec)
-            // Sync every 160,000 cycles (10ms)
-            if (avr->cycle - last_sync >= 160000) {
-                usleep(10000); 
+            // Throttle to exactly 16MHz (16,000,000 cycles per sec)
+            // Sync every 16,000 cycles (1ms of AVR time) for ultra-smooth execution
+            if (avr->cycle - last_sync >= 16000) {
                 last_sync = avr->cycle;
+                
+                struct timespec now;
+                clock_gettime(CLOCK_MONOTONIC, &now);
+                
+                double expected_sec = (double)avr->cycle / 16000000.0;
+                double actual_sec = (now.tv_sec - start_time.tv_sec) + 
+                                    (now.tv_nsec - start_time.tv_nsec) / 1e9;
+                
+                // Only sleep if the simulator is executing faster than real time
+                if (expected_sec > actual_sec) {
+                    usleep((expected_sec - actual_sec) * 1000000.0);
+                }
             }
         }
         return NULL;
@@ -603,7 +619,8 @@ int main(int argc, char *argv[]) {
 
             SDL_SetRenderDrawColor(ren, 30, 30, 30, 255);
             SDL_RenderPresent(ren);
-            SDL_Delay(16); // ~60fps
+            // SDL_Delay removed: SDL_RENDERER_PRESENTVSYNC already caps framerate at 60Hz. 
+            // Explicit delay forces 30fps and causes UI sluggishness.
         }
 
         if (audio_dev > 0) SDL_CloseAudioDevice(audio_dev);

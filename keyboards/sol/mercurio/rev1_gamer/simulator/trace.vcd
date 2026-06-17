@@ -1,4 +1,4 @@
-$date Wed Jun 17 08:45:13 2026
+$date Wed Jun 17 10:41:37 2026
 $end
 $version Simavr v1.8 $end
 $timescale 1ns $end
@@ -17,5 +17,3 @@ x$
 $end
 #267909625
 1!
-#8853426875
-0!
