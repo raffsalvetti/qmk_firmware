@@ -180,12 +180,159 @@ typedef struct {
 key_position_t key_positions[35];
 int key_position_count = 0;
 
+#include <stdbool.h>
+bool key_pressed[35] = {false};
+bool key_pending_release[35] = {false};
+Uint32 key_press_ticks[35] = {0};
+avr_irq_t *row_irqs[5];
+avr_irq_t *col_irqs[7];
+
+// Connection matrix: matrix_connections[row][col] = true means a switch is closed
+bool matrix_connections[5][7] = {{false}};
+
+// Callback fired whenever a row pin changes state (QMK selecting/unselecting rows).
+// If a key is pressed on this row, propagate the row value to the connected column.
+void row_pin_change_notify(struct avr_irq_t * irq, uint32_t value, void * param) {
+    int row = (int)(intptr_t)param;
+    for (int col = 0; col < 7; col++) {
+        if (matrix_connections[row][col]) {
+            // Diode connects row output to column input.
+            // When row is driven LOW (value=0), column should read LOW (key pressed).
+            // When row is HIGH/floating (value=1), column is pulled HIGH by pull-up.
+            avr_raise_irq(col_irqs[col], value);
+        }
+    }
+}
+
+void init_matrix_irqs(avr_t *avr) {
+    avr_irq_t *portA = avr_io_getirq(avr, AVR_IOCTL_IOPORT_GETIRQ('A'), 0);
+    avr_irq_t *portC = avr_io_getirq(avr, AVR_IOCTL_IOPORT_GETIRQ('C'), 0);
+    
+    // Rows: A4, A3, A2, A1, A0
+    row_irqs[0] = &portA[4];
+    row_irqs[1] = &portA[3];
+    row_irqs[2] = &portA[2];
+    row_irqs[3] = &portA[1];
+    row_irqs[4] = &portA[0];
+    
+    // Cols: C2, C3, C4, C5, C6, C7, A7
+    col_irqs[0] = &portC[2];
+    col_irqs[1] = &portC[3];
+    col_irqs[2] = &portC[4];
+    col_irqs[3] = &portC[5];
+    col_irqs[4] = &portC[6];
+    col_irqs[5] = &portC[7];
+    col_irqs[6] = &portA[7];
+
+    // Register a notify callback on each row pin to propagate state changes
+    // to connected columns (simulating the switch+diode matrix wiring)
+    for (int r = 0; r < 5; r++) {
+        avr_irq_register_notify(row_irqs[r], row_pin_change_notify, (void*)(intptr_t)r);
+    }
+}
+
+void set_key_state(int key_idx, bool pressed) {
+    if (key_idx < 0 || key_idx >= key_position_count) return;
+    
+    key_pressed[key_idx] = pressed;
+    int r = key_positions[key_idx].row;
+    int c = key_positions[key_idx].col;
+    
+    printf("SIM: Key %d (Row %d, Col %d) state -> %s\n", key_idx, r, c, pressed ? "PRESSED" : "RELEASED");
+    
+    matrix_connections[r][c] = pressed;
+
+    if (pressed) {
+        // Immediately inject the current row output state into the column.
+        // If the row is currently selected (LOW), this makes the column read LOW.
+        avr_raise_irq(col_irqs[c], row_irqs[r]->value);
+    } else {
+        // Restore the column to HIGH (internal pull-up)
+        avr_raise_irq(col_irqs[c], 1);
+    }
+}
+
+// Wrapper that forces keys to be held for 50ms to defeat QMK debounce
+void trigger_key(int key_idx, bool pressed, struct avr_t *avr) {
+    if (pressed) {
+        set_key_state(key_idx, true);
+        key_press_ticks[key_idx] = SDL_GetTicks();
+        key_pending_release[key_idx] = false;
+    } else {
+        key_pending_release[key_idx] = true;
+    }
+}
+
 // SDL Fill Circle Helper (No overlapping lines for correct alpha blending)
 void SDL_RenderFillCircle(SDL_Renderer * renderer, int center_x, int center_y, int radius) {
     for (int y = -radius; y <= radius; y++) {
         int x = (int)sqrt(radius * radius - y * y);
         SDL_RenderDrawLine(renderer, center_x - x, center_y + y, center_x + x, center_y + y);
     }
+}
+
+// Helper to poll USB endpoints
+// buf_addr: direct buffer address (for inline buffers like usbTxStatus1/3/4)
+//           Pass 0 to dereference ptr_addr as a pointer instead (for EP0's usbTxBuf).
+void poll_usb_endpoint(struct avr_t *avr, uint16_t len_addr, uint16_t buf_or_ptr_addr, int buf_is_inline, const char* ep_name, uint8_t *last_txlen) {
+    if (!len_addr) return;
+    uint8_t current_txlen = avr->data[len_addr];
+    
+    // 0x5A is USBPID_NAK (V-USB "ready" state), 0xFF was our old fake ACK.
+    // Detect a new TX: len changed from a ready state (0x5A or 0xFF) to an actual length.
+    if (current_txlen != 0xFF && current_txlen != 0 && current_txlen != 0x5A &&
+        (*last_txlen == 0xFF || *last_txlen == 0x5A)) {
+        uint16_t actual_buf_addr;
+        if (buf_is_inline) {
+            // Buffer is inline right after len (usbTxStatus_t)
+            actual_buf_addr = buf_or_ptr_addr;
+        } else {
+            // buf_or_ptr_addr points to a 16-bit pointer in SRAM (usbTxBuf)
+            actual_buf_addr = avr->data[buf_or_ptr_addr] | (avr->data[buf_or_ptr_addr + 1] << 8);
+        }
+        
+        printf("SIM: RAW USB TX %s (len=%d) -> ", ep_name, current_txlen);
+        for (int i = 0; i < current_txlen && i < 16; i++) {
+            printf("%02X ", avr->data[actual_buf_addr + i]);
+        }
+        printf("\n");
+        
+        // Decode keyboard HID report on EP1
+        // V-USB buffer layout: [PID][report_id][mods][reserved][keys...][CRC16]
+        // PID byte (0xC3=DATA0, 0x4B=DATA1) is at buffer[0], skip it.
+        if (buf_is_inline && strcmp(ep_name, "EP1") == 0 && current_txlen >= 4) {
+            uint8_t report_id = avr->data[actual_buf_addr + 1]; // skip PID byte
+            if (report_id == 0x01) {
+                uint8_t mods = avr->data[actual_buf_addr + 2];
+                bool has_keys = false;
+                // current_txlen includes SYNC (1), PID (1), DATA (N), CRC (2)
+                // valid bytes in buffer: PID + DATA + CRC = current_txlen - 1
+                // data payload ends before CRC, so max offset is current_txlen - 1 - 2 = current_txlen - 3
+                int max_i = current_txlen - 3;
+                if (max_i > 10) max_i = 10;
+                
+                for (int i = 4; i < max_i; i++) {
+                    if (avr->data[actual_buf_addr + i] != 0) { has_keys = true; break; }
+                }
+                
+                if (has_keys || mods) {
+                    printf("SIM: *** HID KEY PRESS DETECTED *** mods=0x%02X keys=", mods);
+                    for (int i = 4; i < max_i; i++) {
+                        uint8_t kc = avr->data[actual_buf_addr + i];
+                        if (kc) printf("0x%02X ", kc);
+                    }
+                    printf("\n");
+                } else {
+                    printf("SIM: *** HID KEY RELEASE (all keys up) ***\n");
+                }
+            }
+        }
+        
+        // Fake ACK: restore USBPID_NAK so V-USB's usbSetInterrupt() will accept the next report
+        avr->data[len_addr] = 0x5A;
+        current_txlen = 0x5A;
+    }
+    *last_txlen = current_txlen;
 }
 
 int main(int argc, char *argv[]) {
@@ -315,7 +462,28 @@ int main(int argc, char *argv[]) {
                 if (expected_sec > actual_sec) {
                     usleep((expected_sec - actual_sec) * 1000000.0);
                 }
+                
+#if defined(USB_TXLEN_ADDR) && defined(USB_TXBUF_ADDR)
+                static uint8_t last_txlen0 = 0xFF;
+                poll_usb_endpoint(avr, (USB_TXLEN_ADDR) & 0xFFFF, (USB_TXBUF_ADDR) & 0xFFFF, 0, "EP0", &last_txlen0);
+#endif
+#if defined(USB_TXSTATUS1_ADDR)
+                static uint8_t last_txlen1 = 0xFF;
+                poll_usb_endpoint(avr, (USB_TXSTATUS1_ADDR) & 0xFFFF, ((USB_TXSTATUS1_ADDR) & 0xFFFF) + 1, 1, "EP1", &last_txlen1);
+#endif
+#if defined(USB_TXSTATUS3_ADDR)
+                static uint8_t last_txlen3 = 0xFF;
+                poll_usb_endpoint(avr, (USB_TXSTATUS3_ADDR) & 0xFFFF, ((USB_TXSTATUS3_ADDR) & 0xFFFF) + 1, 1, "EP3", &last_txlen3);
+#endif
+#if defined(USB_TXSTATUS4_ADDR)
+                static uint8_t last_txlen4 = 0xFF;
+                poll_usb_endpoint(avr, (USB_TXSTATUS4_ADDR) & 0xFFFF, ((USB_TXSTATUS4_ADDR) & 0xFFFF) + 1, 1, "EP4", &last_txlen4);
+#endif
             }
+        }
+        if (state == cpu_Crashed) {
+            printf("SIM: *** AVR CRASHED *** PC=0x%04X SP=0x%04X cycle=%llu\n",
+                   avr->pc, avr->data[0x5D] | (avr->data[0x5E] << 8), (unsigned long long)avr->cycle);
         }
         return NULL;
     }
@@ -372,6 +540,7 @@ int main(int argc, char *argv[]) {
     } else {
         printf("SIM: Warning: key_positions.csv not found\n");
     }
+    init_matrix_irqs(avr);
 
     // Load OLED Module Config
     FILE *oled_ini = fopen("oled_module.ini", "r");
@@ -445,7 +614,7 @@ int main(int argc, char *argv[]) {
         SDL_Texture* key_tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 1, 1);
         SDL_SetTextureBlendMode(key_tex, SDL_BLENDMODE_BLEND);
         SDL_SetRenderTarget(ren, key_tex);
-        SDL_SetRenderDrawColor(ren, 0, 192, 192, 178); // Light Teal, 70% opacity
+        SDL_SetRenderDrawColor(ren, 0, 192, 192, 255); // Light Teal, 100% opacity
         SDL_RenderClear(ren);
         SDL_SetRenderTarget(ren, NULL);
 
@@ -454,20 +623,78 @@ int main(int argc, char *argv[]) {
 
         // GUI Event Loop
         SDL_Event e;
+        float scale_x = 1.0f;
+        float scale_y = 1.0f;
+        
         while (sim_running) {
+            // Calculate scale proportions in case window/image is resized
+            if (bg_tex) {
+                int win_w, win_h;
+                SDL_GetWindowSize(win, &win_w, &win_h);
+                int img_w, img_h;
+                SDL_QueryTexture(bg_tex, NULL, NULL, &img_w, &img_h);
+                if (img_w > 0 && img_h > 0) {
+                    scale_x = (float)win_w / (float)img_w;
+                    scale_y = (float)win_h / (float)img_h;
+                }
+            }
+
             while (SDL_PollEvent(&e)) {
                 if (e.type == SDL_QUIT) sim_running = 0;
                 
                 // Mouse interaction for PS/2
                 if (e.type == SDL_MOUSEBUTTONDOWN) {
                     if (e.button.button == SDL_BUTTON_LEFT) {
-                        inject_ps2_byte(avr, 0x09); // Left Click packet
-                        inject_ps2_byte(avr, 0x00);
-                        inject_ps2_byte(avr, 0x00);
+                        int hit_key = -1;
+                        float mx = e.button.x / scale_x;
+                        float my = e.button.y / scale_y;
+                        
+                        for (int i = 0; i < key_position_count; i++) {
+                            float kx = key_positions[i].x;
+                            float ky = key_positions[i].y;
+                            float s = key_positions[i].size;
+                            float a = key_positions[i].angle * (M_PI / 180.0f);
+                            
+                            float dx = mx - kx;
+                            float dy = my - ky;
+                            float lx = dx * cos(-a) - dy * sin(-a);
+                            float ly = dx * sin(-a) + dy * cos(-a);
+                            
+                            if (lx >= 0 && lx <= s && ly >= 0 && ly <= s) {
+                                hit_key = i;
+                                break;
+                            }
+                        }
+                        
+                        if (hit_key >= 0) {
+                            printf("SIM: GUI Clicked Key ID %d\n", hit_key);
+                            if (SDL_GetModState() & KMOD_SHIFT) {
+                                trigger_key(hit_key, !key_pressed[hit_key], avr); // Toggle
+                            } else {
+                                trigger_key(hit_key, true, avr);
+                            }
+                        } else {
+                            printf("SIM: GUI Clicked Empty Space (Left Click PS/2)\n");
+                            inject_ps2_byte(avr, 0x09); // Left Click packet
+                            inject_ps2_byte(avr, 0x00);
+                            inject_ps2_byte(avr, 0x00);
+                        }
                     } else if (e.button.button == SDL_BUTTON_RIGHT) {
+                        printf("SIM: GUI Clicked Empty Space (Right Click PS/2)\n");
                         inject_ps2_byte(avr, 0x0A); // Right Click packet
                         inject_ps2_byte(avr, 0x00);
                         inject_ps2_byte(avr, 0x00);
+                    }
+                }
+                if (e.type == SDL_MOUSEBUTTONUP) {
+                    if (e.button.button == SDL_BUTTON_LEFT) {
+                        if (!(SDL_GetModState() & KMOD_SHIFT)) {
+                            for (int i = 0; i < key_position_count; i++) {
+                                if (key_pressed[i]) {
+                                    trigger_key(i, false, avr);
+                                }
+                            }
+                        }
                     }
                 }
                 if (e.type == SDL_MOUSEMOTION && (e.motion.state & SDL_BUTTON_LMASK)) {
@@ -502,19 +729,6 @@ int main(int argc, char *argv[]) {
                 SDL_RenderCopy(ren, bg_tex, NULL, NULL);
             }
 
-            // Calculate scale proportions in case window/image is resized
-            float scale_x = 1.0f;
-            float scale_y = 1.0f;
-            if (bg_tex) {
-                int win_w, win_h;
-                SDL_GetWindowSize(win, &win_w, &win_h);
-                int img_w, img_h;
-                SDL_QueryTexture(bg_tex, NULL, NULL, &img_w, &img_h);
-                if (img_w > 0 && img_h > 0) {
-                    scale_x = (float)win_w / (float)img_w;
-                    scale_y = (float)win_h / (float)img_h;
-                }
-            }
             // Draw Key Positions
             if (key_tex) {
                 for (int i = 0; i < key_position_count; i++) {
@@ -522,6 +736,12 @@ int main(int argc, char *argv[]) {
                     float y = key_positions[i].y;
                     float s = key_positions[i].size;
                     double a = key_positions[i].angle; // SDL_RenderCopyEx takes degrees clockwise!
+                    
+                                        if (key_pressed[i]) {
+                        SDL_SetTextureAlphaMod(key_tex, 255); // 100% opacity
+                    } else {
+                        SDL_SetTextureAlphaMod(key_tex, 178); // 70% opacity
+                    }
                     
                     SDL_Rect dstrect = {
                         (int)(x * scale_x),
@@ -615,9 +835,17 @@ int main(int argc, char *argv[]) {
                 }
             }
 
+            // Process pending key releases (50ms debounce hold using wall-clock time)
+            Uint32 now_ticks = SDL_GetTicks();
+            for (int i = 0; i < key_position_count; i++) {
+                if (key_pending_release[i] && (now_ticks - key_press_ticks[i] >= 50)) {
+                    set_key_state(i, false);
+                    key_pending_release[i] = false;
+                }
+            }
 
-
-            SDL_SetRenderDrawColor(ren, 30, 30, 30, 255);
+            // Clear Screen
+            SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
             SDL_RenderPresent(ren);
             // SDL_Delay removed: SDL_RENDERER_PRESENTVSYNC already caps framerate at 60Hz. 
             // Explicit delay forces 30fps and causes UI sluggishness.

@@ -169,4 +169,7 @@
 #define OLED_TIMEOUT 30000 // Turn off after 30 seconds of inactivity to prevent burn-in
 #define OLED_BRIGHTNESS 128
 #define OLED_DISPLAY_ADDRESS 0x3C
-#define OLED_DISPLAY_128X64
+
+//#define OLED_DISPLAY_128X64
+#define OLED_DISPLAY_WIDTH 128
+#define OLED_DISPLAY_HEIGHT 32
